@@ -261,12 +261,57 @@ struct position
         return frontierDisks + stableDisks;
     }
 
+    int examined[8][8];
+
+    int compSize(int r, int c) { //assumes curr square not examined
+        int toRet = 0;
+        queue<pair<int, int>> q;
+        examined[r][c] = true;
+        q.push({r, c});
+        while (!q.empty()) {
+            pair<int, int> curr = q.front();
+            q.pop();
+            toRet++;
+            for (auto i : directions) {
+                if (boardAt(r+i.first, c+i.second) == '.' and !examined[r+i.first][c+i.second]) {
+                    q.push({r+i.first, c+i.second});
+                    examined[r+i.first][c+i.second] = true;
+                } 
+            }
+        }
+        return toRet;
+    }
+
+    int parity() {
+        int ans = 0;
+        vector<int> parities;
+        int paritySum = 0;
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                examined[i][j] = false;
+            }
+        }
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if(currBoard[i][j] == '.' and !examined[i][j]) {
+                    parities.push_back(compSize(i, j) % 2);
+                    paritySum += parities[parities.size()-1];
+                }
+            }
+        }
+        if (paritySum % 2) ans = 4000 * parities.size();
+        else ans = -4000 * parities.size();
+        
+        if (toPlay == 'B') ans *= -1;
+        return ans;        
+    }
+
     int evaluate1() {
-        return frontierStable();
+        return frontierStable() + cornerMobility();
     }
 
     int evaluate2() {
-        return frontierStable() + cornerMobility();
+        return frontierStable() + cornerMobility() + parity();
     }
 };
 
