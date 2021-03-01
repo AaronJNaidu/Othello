@@ -23,6 +23,7 @@ struct position
     const vector<pair<int, int> > directions = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}};
     const vector<pair<int, int>> corners = {{0, 0}, {0, 7}, {7, 0}, {7, 7}};
     const vector<pair<int, int>> xsquares = {{1, 1}, {1, 6}, {6, 1}, {6, 6}};
+    const vector<pair<int, int>> awayCorners = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
     
     int skippableMoves = 2;
 
@@ -33,6 +34,11 @@ struct position
         pieceCounts[0] = blackPieces;
         pieceCounts[1] = whitePieces;
         skippableMoves = skips;
+    }
+
+    char boardAt(int r, int c) {
+        if(r < 0 or r > 7 or c < 0 or c > 7) return 'X';
+        return currBoard[r][c];
     }
 
     int numOutflanked(int rowDirection, int colDirection) { //assume board[row][col] is empty
@@ -145,7 +151,7 @@ struct position
         cout << "\n";
     }
 
-    int evaluate() {
+    int cornerMobility() {
         if (endOfGame()) {
             return 1000000 * (pieceCounts[1] - pieceCounts[0]);            
         }
@@ -204,7 +210,64 @@ struct position
         return (int) (mobility + cornerControl);
     }
 
-    
+    int frontierStable() {
+        int stableDisks = 0;
+
+        for (int i = 0; i < corners.size(); i++) {
+            int cutoffColumn = 7 - corners[i].second;
+            for (int j = corners[i].first; j != 7-corners[i].first; j+=awayCorners[i].first) {
+                for (int k = corners[i].second; k != cutoffColumn; k+=awayCorners[i].second)
+                {
+                    if (currBoard[j][k] == 'W') stableDisks += 1000;
+                    else {
+                        cutoffColumn = k;
+                        break;
+                    }   
+                }
+            }
+        }
+
+        for (int i = 0; i < corners.size(); i++) {
+            int cutoffColumn = 7 - corners[i].second;
+            for (int j = corners[i].first; j != 7-corners[i].first; j+=awayCorners[i].first) {
+                for (int k = corners[i].second; k != cutoffColumn; k+=awayCorners[i].second)
+                {
+                    if (currBoard[j][k] == 'B') stableDisks -= 1000;
+                    else {
+                        cutoffColumn = k;
+                        break;
+                    }   
+                }
+            }
+        }
+
+        int frontierDisks = 0;
+
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (currBoard[i][j] == 'W') {
+                    for (auto k : directions) {
+                        if(boardAt(i + k.first, j + k.second) == '.') frontierDisks -= 100;
+                    }
+                }
+                else if (currBoard[i][j] == 'B') {
+                    for (auto k : directions) {
+                        if(boardAt(i + k.first, j + k.second) == '.') frontierDisks += 100;
+                    }
+                }
+            }
+        }
+
+        return frontierDisks + stableDisks;
+    }
+
+    int evaluate1() {
+        return frontierStable();
+    }
+
+    int evaluate2() {
+        return frontierStable() + cornerMobility();
+    }
 };
 
 struct engine
@@ -234,7 +297,7 @@ struct engine
         return gameOver();
     }
 
-    bool bestEvalMove() {
+    bool bestEvalMove1() {
         vector<pair<int, int>> legalMoves = currPos.legalMoves();
         int bestInd = -1;
         if (legalMoves.size() == 1) {
@@ -248,7 +311,7 @@ struct engine
             for (int i = 0; i < legalMoves.size(); i++) {
                 position tempPos = position(currPos.currBoard, currPos.toPlay, currPos.pieceCounts[1], currPos.pieceCounts[0], currPos.skippableMoves);
                 tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
-                int eval = tempPos.evaluate();
+                int eval = tempPos.evaluate1();
                 if (eval > bestEval) {
                     bestEval = eval;
                     bestInd = i; 
@@ -260,7 +323,46 @@ struct engine
             for (int i = 0; i < legalMoves.size(); i++) {
                 position tempPos = position(currPos.currBoard, currPos.toPlay, currPos.pieceCounts[1], currPos.pieceCounts[0], currPos.skippableMoves);
                 tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
-                int eval = tempPos.evaluate();
+                int eval = tempPos.evaluate1();
+                if (eval < bestEval) {
+                    bestEval = eval;
+                    bestInd = i; 
+                }                
+            }
+        }
+        currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
+        cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
+        currPos.printBoard();
+        return gameOver();
+    }
+
+    bool bestEvalMove2() {
+        vector<pair<int, int>> legalMoves = currPos.legalMoves();
+        int bestInd = -1;
+        if (legalMoves.size() == 1) {
+            currPos.makeMove(legalMoves[0].first, legalMoves[0].second);
+            cout << legalMoves[0].first << " " << legalMoves[0].second << "\n";
+            currPos.printBoard();
+            return gameOver();
+        }
+        if (currPos.toPlay == 'W') {
+            int bestEval = -1000000000;
+            for (int i = 0; i < legalMoves.size(); i++) {
+                position tempPos = position(currPos.currBoard, currPos.toPlay, currPos.pieceCounts[1], currPos.pieceCounts[0], currPos.skippableMoves);
+                tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
+                int eval = tempPos.evaluate2();
+                if (eval > bestEval) {
+                    bestEval = eval;
+                    bestInd = i; 
+                }                
+            }
+        }
+        else {
+            int bestEval = 1000000000;
+            for (int i = 0; i < legalMoves.size(); i++) {
+                position tempPos = position(currPos.currBoard, currPos.toPlay, currPos.pieceCounts[1], currPos.pieceCounts[0], currPos.skippableMoves);
+                tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
+                int eval = tempPos.evaluate2();
                 if (eval < bestEval) {
                     bestEval = eval;
                     bestInd = i; 
@@ -291,20 +393,21 @@ struct engine
 
 
 int main(){
+    srand((int) time(0));
     engine ai = engine();  
     int player;
     int keepGoing = 1;
     cin >> player;
     if (player == -1)
     {
-        ai.recieveMove();
+        ai.bestEvalMove1();
     }
     while (keepGoing)
     {
-        keepGoing = ai.bestEvalMove();
+        keepGoing = ai.bestEvalMove2();
         if (keepGoing)
         {
-            keepGoing = ai.recieveMove();
+            keepGoing = ai.bestEvalMove1();
         }
     } 
     ai.printWinner();
