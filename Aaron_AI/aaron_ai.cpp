@@ -11,6 +11,19 @@ vector<vector<char>> board =    {{'.','.','.','.','.','.','.','.'},
                                 {'.','.','.','.','.','.','.','.'},
                                 };
 
+const vector<pair<int, int> > directions = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}};
+const vector<pair<int, int>> corners = {{0, 0}, {0, 7}, {7, 0}, {7, 7}};
+const vector<pair<int, int>> xsquares = {{1, 1}, {1, 6}, {6, 1}, {6, 6}};
+const vector<pair<int, int>> awayCorners = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
+const vector<pair<int, int>> squareOrders = {{0, 0}, {7, 0}, {0, 7}, {7, 7}, {3, 3}, {3, 4}, {4, 4}, {4, 3}, 
+                                             {3, 2}, {4, 2}, {3, 5}, {4, 5}, {2, 3}, {2, 4}, {5, 4}, {5, 3}, 
+                                             {2, 2}, {2, 5}, {5, 2}, {5, 5}, {0, 2}, {0, 3}, {0, 4}, {0, 5}, 
+                                             {7, 2}, {7, 3}, {7, 4}, {7, 5}, {2, 0}, {3, 0}, {4, 0}, {5, 0}, 
+                                             {2, 7}, {3, 7}, {4, 7}, {5, 7}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, 
+                                             {6, 2}, {6, 3}, {6, 4}, {6, 5}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, 
+                                             {2, 6}, {3, 6}, {4, 6}, {5, 6}, {0, 1}, {1, 0}, {0, 6}, {6, 0}, 
+                                             {7, 1}, {1, 7}, {6, 7}, {7, 6}, {1, 1}, {1, 6}, {6, 1}, {6, 6}};
+
 struct position
 {
     vector<vector<char>> currBoard;
@@ -19,11 +32,6 @@ struct position
     int row;
     int col;
     int pieceCounts[2] = {2, 2};
-
-    const vector<pair<int, int> > directions = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}};
-    const vector<pair<int, int>> corners = {{0, 0}, {0, 7}, {7, 0}, {7, 7}};
-    const vector<pair<int, int>> xsquares = {{1, 1}, {1, 6}, {6, 1}, {6, 6}};
-    const vector<pair<int, int>> awayCorners = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
     
     int skippableMoves = 2;
 
@@ -67,12 +75,10 @@ struct position
 
     vector<pair<int, int>> legalMoves() {
         vector<pair<int, int>> ans;
-        for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 8; j++) {
-                row = i;
-                col = j;
-                if(isValid()) ans.push_back({i, j});
-            }
+        for (auto j : squareOrders) {
+            row = j.first;
+            col = j.second;
+            if(isValid()) ans.push_back({j.first, j.second});
         }
         if(!ans.size()) {
             ans.push_back({-1, -1});
@@ -299,8 +305,8 @@ struct position
                 }
             }
         }
-        if (paritySum % 2) ans = 4000 * parities.size();
-        else ans = -4000 * parities.size();
+        if (paritySum % 2) ans = 400 * parities.size();
+        else ans = -400 * parities.size();
         
         if (toPlay == 'B') ans *= -1;
         return ans;        
@@ -313,14 +319,16 @@ struct position
     int evaluate2() {
         return frontierStable() + cornerMobility() + parity();
     }
+
 };
 
 struct engine
 {
+    //unordered_map<vector<vector<char>>, vector<pair<int, pair<int, int>>>> posEval;
     position currPos = position(board, 'B', 2, 2, 2);
 
     bool gameOver() {
-        if (currPos.skippableMoves == 0 or currPos.pieceCounts[0] + currPos.pieceCounts[1] == 64) {
+        if (currPos.skippableMoves <= 0 or currPos.pieceCounts[0] + currPos.pieceCounts[1] == 64) {
             return 0;
         }
         return 1;
@@ -420,6 +428,64 @@ struct engine
         return gameOver();
     }
 
+    int bestEvalDepth(int depth, int layers, int alpha, int beta, position thisPos) {
+        if (depth == 0) return thisPos.evaluate2();
+
+        if (thisPos.endOfGame()) return thisPos.evaluate2();
+        
+        vector<pair<int, int>> legalMoves = thisPos.legalMoves();
+        int bestInd = -1;
+        if (legalMoves.size() == 1 and layers == 0) {
+            currPos.makeMove(legalMoves[0].first, legalMoves[0].second);
+            cout << legalMoves[0].first << " " << legalMoves[0].second << "\n";
+            currPos.printBoard();
+            return gameOver();
+        }
+        if (thisPos.toPlay == 'W') {
+            int bestEval = -1000000000;
+            for (int i = 0; i < legalMoves.size(); i++) {
+                position tempPos = position(thisPos.currBoard, thisPos.toPlay, thisPos.pieceCounts[1], thisPos.pieceCounts[0], thisPos.skippableMoves);
+                tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
+                int tempEval = bestEvalDepth(depth-1, layers+1, alpha, beta, tempPos);
+                if (tempEval > bestEval) {
+                   bestEval = tempEval;
+                   bestInd = i;
+                }
+                alpha = max(alpha, bestEval);
+                if(alpha >= beta) return bestEval;             
+            }   
+            if (layers == 0) {
+                currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
+                cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
+                currPos.printBoard();
+                return gameOver();
+            }
+            return bestEval;
+        }
+        else {
+            int bestEval = 1000000000;
+            for (int i = 0; i < legalMoves.size(); i++) {
+                position tempPos = position(thisPos.currBoard, thisPos.toPlay, thisPos.pieceCounts[1], thisPos.pieceCounts[0], thisPos.skippableMoves);
+                tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
+                int tempEval = bestEvalDepth(depth-1, layers+1, alpha, beta, tempPos);
+                if (tempEval < bestEval) {
+                   bestEval = tempEval;
+                   bestInd = i;
+                }
+                beta = min(beta, bestEval);
+                if(alpha >= beta) return bestEval;             
+            }  
+            if (layers == 0) {
+                currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
+                cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
+                currPos.printBoard();
+                return gameOver();
+            }
+            return bestEval;
+        }
+        
+    }
+
     void printWinner() {
         
         cout << currPos.pieceCounts[1] << " white disks VS " << currPos.pieceCounts[0] << " black disks\n";
@@ -443,17 +509,12 @@ int main(){
     int player;
     int keepGoing = 1;
     cin >> player;
-    if (player == -1)
-    {
-        ai.bestEvalMove1();
+    if (player == -1) {
+        ai.bestEvalMove2();
     }
-    while (keepGoing)
-    {
-        keepGoing = ai.bestEvalMove2();
-        if (keepGoing)
-        {
-            keepGoing = ai.bestEvalMove1();
-        }
+    while (keepGoing) {
+        keepGoing = ai.bestEvalDepth(5, 0, -1000000000, 1000000000, ai.currPos);
+        if (keepGoing) keepGoing = ai.bestEvalMove2();
     } 
     ai.printWinner();
     
