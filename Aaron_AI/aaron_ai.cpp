@@ -1,6 +1,6 @@
 #include <bits/stdc++.h>
 using namespace std;
-
+ofstream fout("timings4.txt");
 vector<vector<char>> board =    {{'.','.','.','.','.','.','.','.'},
                                 {'.','.','.','.','.','.','.','.'},
                                 {'.','.','.','.','.','.','.','.'},
@@ -12,6 +12,7 @@ vector<vector<char>> board =    {{'.','.','.','.','.','.','.','.'},
                                 };
 
 const vector<pair<int, int> > directions = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}};
+const vector<pair<pair<int, int>, pair<int, int>>> pairedDirections= {{{-1, -1}, {1, 1}},  {{-1, 1}, {1, -1}},  {{0, 1}, {0, -1}},  {{1, 0}, {-1, 0}}}; 
 const vector<pair<int, int>> corners = {{0, 0}, {0, 7}, {7, 0}, {7, 7}};
 const vector<pair<int, int>> xsquares = {{1, 1}, {1, 6}, {6, 1}, {6, 6}};
 const vector<pair<int, int>> awayCorners = {{1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
@@ -189,8 +190,7 @@ struct position
                 case 'B': cornerControl += 8000;
                     break;
                 default:
-                    switch (currBoard[corners[i].first][xsquares[i].second])
-                    {
+                    switch (currBoard[corners[i].first][xsquares[i].second]) {
                     case 'W': cornerControl -= 4000;
                         break;
                     case 'B': cornerControl += 4000;
@@ -312,12 +312,66 @@ struct position
         return ans;        
     }
 
+    int internalStability() {
+        int whiteStable = 0;
+        int blackStable = 0;
+        for (int i = 0; i < 7; i++) {
+            int tempWhite = 0;
+            int tempBlack = 0;
+            for (int j = 0; j < 7; j++) {
+                if (board[i][j] == 'W') tempWhite++;
+                else if (board[i][j] == 'B') tempBlack++;
+                else goto side2;
+            }
+            whiteStable += 1000 * tempWhite;
+            blackStable += 1000 * tempBlack;
+        }
+        side2:
+        for (int i = 7; i >= 0; i--) {
+            int tempWhite = 0;
+            int tempBlack = 0;
+            for (int j = 0; j < 7; j++) {
+                if (board[i][j] == 'W') tempWhite++;
+                else if (board[i][j] == 'B') tempBlack++;
+                else goto side3;
+            }
+            whiteStable += 1000 * tempWhite;
+            blackStable += 1000 * tempBlack;
+        }
+        side3:
+        for (int i = 0; i < 7; i++) {
+            int tempWhite = 0;
+            int tempBlack = 0;
+            for (int j = 0; j < 7; j++) {
+                if (board[j][i] == 'W') tempWhite++;
+                else if (board[j][i] == 'B') tempBlack++;
+                else goto side4;
+            }
+            whiteStable += 1000 * tempWhite;
+            blackStable += 1000 * tempBlack;
+        }
+        side4:
+        for (int i = 7; i >= 0; i--) {
+            int tempWhite = 0;
+            int tempBlack = 0;
+            for (int j = 0; j < 7; j++) {
+                if (board[j][i] == 'W') tempWhite++;
+                else if (board[j][i] == 'B') tempBlack++;
+                else goto last;
+            }
+            whiteStable += 1000 * tempWhite;
+            blackStable += 1000 * tempBlack;
+        }
+        last:
+        return whiteStable - blackStable;
+    }
+
     int evaluate1() {
-        return frontierStable() + cornerMobility();
+        return frontierStable() + cornerMobility() + parity();
     }
 
     int evaluate2() {
-        return frontierStable() + cornerMobility() + parity();
+        return frontierStable() + cornerMobility() + parity() + internalStability();
     }
 
 };
@@ -457,6 +511,66 @@ struct engine
             if (layers == 0) {
                 currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
                 cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
+                cout << "Evaluated at " << bestEval << "\n";
+                currPos.printBoard();
+                return gameOver();
+            }
+            return bestEval;
+        }
+        else {
+            int bestEval = 1000000000;
+            for (int i = 0; i < legalMoves.size(); i++) {
+                position tempPos = position(thisPos.currBoard, thisPos.toPlay, thisPos.pieceCounts[1], thisPos.pieceCounts[0], thisPos.skippableMoves);
+                tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
+                int tempEval = bestEvalDepth(depth-1, layers+1, alpha, beta, tempPos);
+                if (tempEval < bestEval) {
+                   bestEval = tempEval;
+                   bestInd = i;
+                }
+                beta = min(beta, bestEval);
+                if(alpha >= beta) return bestEval;             
+            }  
+            if (layers == 0) {
+                currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
+                cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
+                cout << "Evaluated at " << bestEval << "\n";
+                currPos.printBoard();
+                return gameOver();
+            }
+            return bestEval;
+        }
+        
+    }
+
+    int bestEvalDepth1(int depth, int layers, int alpha, int beta, position thisPos) {
+        if (depth == 0) return thisPos.evaluate1();
+
+        if (thisPos.endOfGame()) return thisPos.evaluate1();
+        
+        vector<pair<int, int>> legalMoves = thisPos.legalMoves();
+        int bestInd = -1;
+        if (legalMoves.size() == 1 and layers == 0) {
+            currPos.makeMove(legalMoves[0].first, legalMoves[0].second);
+            cout << legalMoves[0].first << " " << legalMoves[0].second << "\n";
+            currPos.printBoard();
+            return gameOver();
+        }
+        if (thisPos.toPlay == 'W') {
+            int bestEval = -1000000000;
+            for (int i = 0; i < legalMoves.size(); i++) {
+                position tempPos = position(thisPos.currBoard, thisPos.toPlay, thisPos.pieceCounts[1], thisPos.pieceCounts[0], thisPos.skippableMoves);
+                tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
+                int tempEval = bestEvalDepth(depth-1, layers+1, alpha, beta, tempPos);
+                if (tempEval > bestEval) {
+                   bestEval = tempEval;
+                   bestInd = i;
+                }
+                alpha = max(alpha, bestEval);
+                if(alpha >= beta) return bestEval;             
+            }   
+            if (layers == 0) {
+                currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
+                cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
                 currPos.printBoard();
                 return gameOver();
             }
@@ -500,6 +614,14 @@ struct engine
         }  
     }
 
+    int calculateDepth() {
+        if(currPos.pieceCounts[0] + currPos.pieceCounts[1] > 50) return 64 - (currPos.pieceCounts[0] + currPos.pieceCounts[1]);
+        int size = currPos.legalMoves().size();
+        if(size <= 6) return 8;
+        if(size <= 8) return 7;
+        if(size <= 12) return 6;
+        return 5;
+    }
 };
 
 
@@ -510,11 +632,25 @@ int main(){
     int keepGoing = 1;
     cin >> player;
     if (player == -1) {
-        ai.bestEvalMove2();
+        //auto begin = std::chrono::high_resolution_clock::now();
+        ai.recieveMove();
+        //auto end = std::chrono::high_resolution_clock::now();
+        //auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+        //fout << elapsed.count() << "\n";
     }
     while (keepGoing) {
-        keepGoing = ai.bestEvalDepth(5, 0, -1000000000, 1000000000, ai.currPos);
-        if (keepGoing) keepGoing = ai.bestEvalMove2();
+        auto begin = std::chrono::high_resolution_clock::now();
+        keepGoing = ai.bestEvalDepth(ai.calculateDepth(), 0, -1000000000, 1000000000, ai.currPos);
+        auto end = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+        fout << elapsed.count() << "\n";
+        if (keepGoing) {
+            //auto begin = std::chrono::high_resolution_clock::now();
+            keepGoing = ai.recieveMove();
+            //auto end = std::chrono::high_resolution_clock::now();
+            //auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+            //fout << elapsed.count() << "\n";
+        }
     } 
     ai.printWinner();
     
