@@ -1,6 +1,6 @@
 #include <bits/stdc++.h>
 using namespace std;
-ofstream fout("timings4.txt");
+ofstream fout("timings5.txt");
 vector<vector<char>> board =    {{'.','.','.','.','.','.','.','.'},
                                 {'.','.','.','.','.','.','.','.'},
                                 {'.','.','.','.','.','.','.','.'},
@@ -378,7 +378,6 @@ struct position
 
 struct engine
 {
-    //unordered_map<vector<vector<char>>, vector<pair<int, pair<int, int>>>> posEval;
     position currPos = position(board, 'B', 2, 2, 2);
 
     bool gameOver() {
@@ -483,11 +482,24 @@ struct engine
     }
 
     int bestEvalDepth(int depth, int layers, int alpha, int beta, position thisPos) {
-        if (depth == 0) return thisPos.evaluate2();
-
-        if (thisPos.endOfGame()) return thisPos.evaluate2();
+        //cout << "IN POSITION\n";
+        //thisPos.printBoard();
         
-        vector<pair<int, int>> legalMoves = thisPos.legalMoves();
+        if (thisPos.endOfGame() and layers == 0) return 0;
+        
+        if (depth == 0) {
+            //cout << "Immediate evaluation: " << thisPos.evaluate2() << "\n";
+            //cout << "Leave Position\n";
+            return thisPos.evaluate2();
+        }
+
+        if (thisPos.endOfGame()) {
+            //cout << "Immediate evaluation: " << thisPos.evaluate2() << "\n";
+            //cout << "Leave Position\n";
+            return thisPos.evaluate2();
+        }
+        
+        vector<pair<int, int>> legalMoves = thisPos.legalMoves();        
         int bestInd = -1;
         if (legalMoves.size() == 1 and layers == 0) {
             currPos.makeMove(legalMoves[0].first, legalMoves[0].second);
@@ -495,18 +507,23 @@ struct engine
             currPos.printBoard();
             return gameOver();
         }
+        
         if (thisPos.toPlay == 'W') {
             int bestEval = -1000000000;
             for (int i = 0; i < legalMoves.size(); i++) {
                 position tempPos = position(thisPos.currBoard, thisPos.toPlay, thisPos.pieceCounts[1], thisPos.pieceCounts[0], thisPos.skippableMoves);
                 tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
                 int tempEval = bestEvalDepth(depth-1, layers+1, alpha, beta, tempPos);
+                //cout << "Move " << legalMoves[i].first << " " << legalMoves[i].second << " evaluated at " << tempEval << "\n";
                 if (tempEval > bestEval) {
                    bestEval = tempEval;
                    bestInd = i;
                 }
                 alpha = max(alpha, bestEval);
-                if(alpha >= beta) return bestEval;             
+                if(alpha >= beta) {
+                    //cout << "Leave Position\n";
+                    return bestEval;
+                }             
             }   
             if (layers == 0) {
                 currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
@@ -515,6 +532,7 @@ struct engine
                 currPos.printBoard();
                 return gameOver();
             }
+            //cout << "Leave Position\n";
             return bestEval;
         }
         else {
@@ -522,13 +540,18 @@ struct engine
             for (int i = 0; i < legalMoves.size(); i++) {
                 position tempPos = position(thisPos.currBoard, thisPos.toPlay, thisPos.pieceCounts[1], thisPos.pieceCounts[0], thisPos.skippableMoves);
                 tempPos.makeMove(legalMoves[i].first, legalMoves[i].second);
+                //cout << "Make move " << legalMoves[i].first << " " << legalMoves[i].second << "\n";
                 int tempEval = bestEvalDepth(depth-1, layers+1, alpha, beta, tempPos);
+                //cout << "Move " << legalMoves[i].first << " " << legalMoves[i].second << " evaluated at " << tempEval << "\n";
                 if (tempEval < bestEval) {
                    bestEval = tempEval;
                    bestInd = i;
                 }
                 beta = min(beta, bestEval);
-                if(alpha >= beta) return bestEval;             
+                if(alpha >= beta) {
+                    //cout << "Leave Position\n";
+                    return bestEval;
+                }         
             }  
             if (layers == 0) {
                 currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
@@ -537,12 +560,15 @@ struct engine
                 currPos.printBoard();
                 return gameOver();
             }
+           // cout << "Leave Position\n";
             return bestEval;
         }
         
     }
 
     int bestEvalDepth1(int depth, int layers, int alpha, int beta, position thisPos) {
+        if (thisPos.endOfGame() and layers == 0) return 0;
+        
         if (depth == 0) return thisPos.evaluate1();
 
         if (thisPos.endOfGame()) return thisPos.evaluate1();
@@ -615,7 +641,7 @@ struct engine
     }
 
     int calculateDepth() {
-        if(currPos.pieceCounts[0] + currPos.pieceCounts[1] > 50) return 64 - (currPos.pieceCounts[0] + currPos.pieceCounts[1]);
+        if(currPos.pieceCounts[0] + currPos.pieceCounts[1] > 50) return 64;
         int size = currPos.legalMoves().size();
         if(size <= 6) return 8;
         if(size <= 8) return 7;
@@ -632,11 +658,11 @@ int main(){
     int keepGoing = 1;
     cin >> player;
     if (player == -1) {
-        //auto begin = std::chrono::high_resolution_clock::now();
-        ai.recieveMove();
-        //auto end = std::chrono::high_resolution_clock::now();
-        //auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
-        //fout << elapsed.count() << "\n";
+        auto begin = std::chrono::high_resolution_clock::now();
+        ai.bestEvalDepth(ai.calculateDepth(), 0, -1000000000, 1000000000, ai.currPos);
+        auto end = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
+        fout << elapsed.count() << "\n";
     }
     while (keepGoing) {
         auto begin = std::chrono::high_resolution_clock::now();
@@ -645,14 +671,31 @@ int main(){
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
         fout << elapsed.count() << "\n";
         if (keepGoing) {
-            //auto begin = std::chrono::high_resolution_clock::now();
-            keepGoing = ai.recieveMove();
-            //auto end = std::chrono::high_resolution_clock::now();
-            //auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-            //fout << elapsed.count() << "\n";
+            auto begin = std::chrono::high_resolution_clock::now();
+            ai.bestEvalDepth(ai.calculateDepth(), 0, -1000000000, 1000000000, ai.currPos);
+            auto end = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+            fout << elapsed.count() << "\n";
         }
     } 
     ai.printWinner();
     
     return 0;   
 }
+
+/*int main() {
+    engine ai = engine();
+    vector<vector<char>> tempBoard =   {{'W','W','W','W','W','W','W','W'},
+                                        {'B','W','B','B','B','B','.','W'},
+                                        {'B','B','W','W','B','B','B','W'},
+                                        {'B','B','W','W','B','B','B','W'},
+                                        {'B','B','W','W','W','W','B','W'},
+                                        {'B','B','B','W','B','W','B','W'},
+                                        {'B','B','B','B','W','B','B','W'},
+                                        {'.','W','B','B','B','B','B','.'},
+                                        };
+    ai.currPos = position(tempBoard, 'W', 28, 33, 2);
+    int depth = ai.calculateDepth();
+    cout << "Depth: " << depth << "\n";
+    ai.bestEvalDepth(depth, 0, -1000000000, 1000000000, ai.currPos);
+}*/
