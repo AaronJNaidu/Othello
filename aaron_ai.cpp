@@ -1,6 +1,6 @@
 #include <bits/stdc++.h>
 using namespace std;
-ofstream fout("timings6.txt");
+//ofstream fout("timings7.txt");
 vector<vector<char>> board =    {{'.','.','.','.','.','.','.','.'},
                                 {'.','.','.','.','.','.','.','.'},
                                 {'.','.','.','.','.','.','.','.'},
@@ -605,7 +605,7 @@ struct engine
         if (legalMoves.size() == 1 and layers == 0) {
             currPos.makeMove(legalMoves[0].first, legalMoves[0].second);
             cout << legalMoves[0].first << " " << legalMoves[0].second << "\n";
-            fout << 1 << "\t\t";
+            //fout << 1 << "\t\t";
             currPos.printBoard();
             return gameOver();
         }
@@ -631,7 +631,7 @@ struct engine
                 currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
                 cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
                 //cout << "Evaluated at " << bestEval << "\n";
-                fout << legalMoves.size() << "\t\t";
+                //fout << legalMoves.size() << "\t\t";
                 currPos.printBoard();
                 return gameOver();
             }
@@ -661,7 +661,7 @@ struct engine
                 cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
                 //cout << "Evaluated at " << bestEval << "\n";
                 currPos.printBoard();
-                fout << legalMoves.size() << "\t\t";
+                //fout << legalMoves.size() << "\t\t";
                 return gameOver();
             }
            // cout << "Leave Position\n";
@@ -682,7 +682,7 @@ struct engine
         if (legalMoves.size() == 1 and layers == 0) {
             currPos.makeMove(legalMoves[0].first, legalMoves[0].second);
             cout << legalMoves[0].first << " " << legalMoves[0].second << "\n";
-            fout << 1 << "\t";
+            //fout << 1 << "\t";
             currPos.printBoard();
             return gameOver();
         }
@@ -708,7 +708,7 @@ struct engine
                 currPos.makeMove(legalMoves[bestInd].first, legalMoves[bestInd].second);
                 cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
                 //cout << "Evaluated at " << bestEval << "\n";
-                fout << legalMoves.size() << "\t";
+                //fout << legalMoves.size() << "\t";
                 currPos.printBoard();
                 return gameOver();
             }
@@ -738,7 +738,7 @@ struct engine
                 cout << legalMoves[bestInd].first << " " << legalMoves[bestInd].second << "\n";
                 //cout << "Evaluated at " << bestEval << "\n";
                 currPos.printBoard();
-                fout << legalMoves.size() << "\t";
+                //fout << legalMoves.size() << "\t";
                 return gameOver();
             }
            // cout << "Leave Position\n";
@@ -762,12 +762,12 @@ struct engine
 
     int calculateDepth() {
         int offset = 0;
-        if (2*availableTime/(65-currPos.pieceCounts[0]-currPos.pieceCounts[1]) < 1500) offset = -1;
-        else if(2*availableTime/(65-currPos.pieceCounts[0]-currPos.pieceCounts[1]) > 8000) offset = 1;
+        /*if (2*availableTime/(65-currPos.pieceCounts[0]-currPos.pieceCounts[1]) < 1500) offset = -1;
+        else if(2*availableTime/(65-currPos.pieceCounts[0]-currPos.pieceCounts[1]) > 8000) offset = 1;*/
         
         if(currPos.pieceCounts[0] + currPos.pieceCounts[1] > 50) return 64;
         int size = currPos.legalMoves().size();
-        if(size <= 6) return 8 + offset;
+        //if(size <= 2) return 8 + offset;
         if(size <= 8) return 7 + offset;
         if(size <= 12) return 6 + offset;
         return 5 + offset;
@@ -789,16 +789,16 @@ int main(){
         //keepGoing = ai.bestEvalDepth1(ai.calculateDepth(), 0, -1000000000, 1000000000, ai.currPos);
         //auto end = std::chrono::high_resolution_clock::now();
         //auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end - begin);
-        //fout << elapsed.count() << "\n";
+        //fout << elapsed.count()/2 << "\n";
     }
     while (keepGoing) {        
-        auto begin = std::chrono::high_resolution_clock::now();
+        //auto begin = std::chrono::high_resolution_clock::now();
         keepGoing = ai.bestEvalDepth(ai.calculateDepth(), 0, -1000000000, 1000000000, ai.currPos);
         cout.flush();
-        auto end = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-        fout << elapsed.count() << "\n";
-        availableTime -= elapsed.count();
+        //auto end = std::chrono::high_resolution_clock::now();
+        //auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+        //fout << elapsed.count()/2 << "\n";
+       // availableTime -= elapsed.count();
         if (keepGoing) {
             //auto begin = std::chrono::high_resolution_clock::now();
             //keepGoing = ai.bestEvalDepth1(ai.calculateDepth(), 0, -1000000000, 1000000000, ai.currPos);
@@ -807,7 +807,7 @@ int main(){
             //time_t endTime = std::chrono::system_clock::to_time_t(end);
             //cout << ctime(&endTime) << "\n"; 
             //auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-            //fout << elapsed.count() << "\n";
+            //fout << elapsed.count()/2 << "\n";
         }
     } 
     //ai.printWinner();
